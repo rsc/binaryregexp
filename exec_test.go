@@ -8,15 +8,15 @@ import (
 	"bufio"
 	"compress/bzip2"
 	"fmt"
-	"internal/testenv"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp/syntax"
 	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"rsc.io/binaryregexp/syntax"
 )
 
 // TestRE2 tests this package's regexp API against test cases
@@ -68,6 +68,7 @@ func TestRE2Search(t *testing.T) {
 }
 
 func testRE2(t *testing.T, file string) {
+	t.Skip("skipping - RE2 testdata assumes UTF-8")
 	f, err := os.Open(file)
 	if err != nil {
 		t.Fatal(err)
@@ -660,8 +661,7 @@ func makeText(n int) []byte {
 }
 
 func BenchmarkMatch(b *testing.B) {
-	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
-
+	isRaceBuilder := false
 	for _, data := range benchData {
 		r := MustCompile(data.re)
 		for _, size := range benchSizes {
@@ -682,7 +682,7 @@ func BenchmarkMatch(b *testing.B) {
 }
 
 func BenchmarkMatch_onepass_regex(b *testing.B) {
-	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
+	isRaceBuilder := false
 	r := MustCompile(`(?s)\A.*\z`)
 	if r.onepass == nil {
 		b.Fatalf("want onepass regex, but %q is not onepass", r)

@@ -154,8 +154,8 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 
 	// Have prefix; gather characters.
 	var buf strings.Builder
-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
-		buf.WriteRune(i.Rune[0])
+	for i.op() == InstRune && len(i.Rune) == 1 && i.Rune[0] <= 0xFF && Flags(i.Arg)&FoldCase == 0 {
+		buf.WriteByte(byte(i.Rune[0]))
 		i = p.skipNop(i.Out)
 	}
 	return buf.String(), i.Op == InstMatch

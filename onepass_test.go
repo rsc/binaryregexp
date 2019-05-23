@@ -6,7 +6,7 @@ package regexp
 
 import (
 	"reflect"
-	"regexp/syntax"
+	"rsc.io/binaryregexp/syntax"
 	"strings"
 	"testing"
 )

@@ -15,8 +15,9 @@
 package regexp
 
 import (
-	"regexp/syntax"
 	"sync"
+
+	"rsc.io/binaryregexp/syntax"
 )
 
 // A job is an entry on the backtracker's job stack. It holds
@@ -328,7 +329,6 @@ func (re *Regexp) backtrack(ib []byte, is string, pos int, ncap int, dstCap []in
 			return nil
 		}
 	} else {
-
 		// Unanchored search, starting from each possible text position.
 		// Notice that we have to try the empty string at the end of
 		// the text, so the loop condition is pos <= end, not pos < end.

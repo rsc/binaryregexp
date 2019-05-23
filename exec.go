@@ -6,8 +6,9 @@ package regexp
 
 import (
 	"io"
-	"regexp/syntax"
 	"sync"
+
+	"rsc.io/binaryregexp/syntax"
 )
 
 // A queue is a 'sparse array' holding pending threads of execution.
@@ -63,7 +64,7 @@ func (i *inputs) newString(s string) input {
 	return &i.string
 }
 
-func (i *inputs) newReader(r io.RuneReader) input {
+func (i *inputs) newReader(r io.ByteReader) input {
 	i.reader.r = r
 	i.reader.atEOT = false
 	i.reader.pos = 0
@@ -82,7 +83,7 @@ func (i *inputs) clear() {
 	}
 }
 
-func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
+func (i *inputs) init(r io.ByteReader, b []byte, s string) (input, int) {
 	if r != nil {
 		return i.newReader(r), 0
 	}
@@ -204,7 +205,7 @@ func (m *machine) match(i input, pos int) bool {
 				// Have match; finished exploring alternatives.
 				break
 			}
-			if len(m.re.prefix) > 0 && r1 != m.re.prefixRune && i.canCheckPrefix() {
+			if len(m.re.prefix) > 0 && r1 != rune(m.re.prefix[0]) && i.canCheckPrefix() {
 				// Match requires literal prefix; fast search for it.
 				advance := i.index(m.re, pos)
 				if advance < 0 {
@@ -394,7 +395,7 @@ func freeOnePassMachine(m *onePassMachine) {
 }
 
 // doOnePass implements r.doExecute using the one-pass execution engine.
-func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
+func (re *Regexp) doOnePass(ir io.ByteReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
 	startCond := re.cond
 	if startCond == ^syntax.EmptyOp(0) { // impossible
 		return nil
@@ -510,7 +511,7 @@ Return:
 }
 
 // doMatch reports whether either r, b or s match the regexp.
-func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
+func (re *Regexp) doMatch(r io.ByteReader, b []byte, s string) bool {
 	return re.doExecute(r, b, s, 0, 0, nil) != nil
 }
 
@@ -518,7 +519,7 @@ func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 // of its subexpressions to dstCap and returns dstCap.
 //
 // nil is returned if no matches are found and non-nil if matches are found.
-func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
+func (re *Regexp) doExecute(r io.ByteReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	if dstCap == nil {
 		// Make sure 'return dstCap' is non-nil.
 		dstCap = arrayNoInts[:0:0]

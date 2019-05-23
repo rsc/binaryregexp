@@ -52,13 +52,13 @@
 // an empty string means either no match or an empty match.
 //
 // There is also a subset of the methods that can be applied to text read
-// from a RuneReader:
+// from a ByteReader:
 //
 //	MatchReader, FindReaderIndex, FindReaderSubmatchIndex
 //
 // This set may grow. Note that regular expression matches may need to
 // examine text beyond the text returned by a match, so the methods that
-// match text from a RuneReader may read arbitrarily far into the input
+// match text from a ByteReader may read arbitrarily far into the input
 // before returning.
 //
 // (There are a few other methods that do not match this pattern.)
@@ -68,12 +68,12 @@ package regexp
 import (
 	"bytes"
 	"io"
-	"regexp/syntax"
 	"strconv"
 	"strings"
 	"sync"
 	"unicode"
-	"unicode/utf8"
+
+	"rsc.io/binaryregexp/syntax"
 )
 
 // Regexp is the representation of a compiled regular expression.
@@ -88,7 +88,6 @@ type Regexp struct {
 	subexpNames    []string
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
-	prefixRune     rune           // first rune in prefix
 	prefixEnd      uint32         // pc for last rune in prefix
 	mpool          int            // pool for machines
 	matchcap       int            // size of recorded match lengths
@@ -204,7 +203,6 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 		// TODO(rsc): Remove this allocation by adding
 		// IndexString to package bytes.
 		regexp.prefixBytes = []byte(regexp.prefix)
-		regexp.prefixRune, _ = utf8.DecodeRuneInString(regexp.prefix)
 	}
 
 	n := len(prog.Inst)
@@ -274,11 +272,7 @@ func minInputLen(re *syntax.Regexp) int {
 	case syntax.OpAnyChar, syntax.OpAnyCharNotNL, syntax.OpCharClass:
 		return 1
 	case syntax.OpLiteral:
-		l := 0
-		for _, r := range re.Rune {
-			l += utf8.RuneLen(r)
-		}
-		return l
+		return len(re.Rune)
 	case syntax.OpCapture, syntax.OpPlus:
 		return minInputLen(re.Sub[0])
 	case syntax.OpRepeat:
@@ -365,10 +359,7 @@ type inputString struct {
 func (i *inputString) step(pos int) (rune, int) {
 	if pos < len(i.str) {
 		c := i.str[pos]
-		if c < utf8.RuneSelf {
-			return rune(c), 1
-		}
-		return utf8.DecodeRuneInString(i.str[pos:])
+		return rune(c), 1
 	}
 	return endOfText, 0
 }
@@ -390,16 +381,10 @@ func (i *inputString) context(pos int) lazyFlag {
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
 		r1 = rune(i.str[pos-1])
-		if r1 >= utf8.RuneSelf {
-			r1, _ = utf8.DecodeLastRuneInString(i.str[:pos])
-		}
 	}
 	// 0 <= pos && pos < len(i.str)
 	if uint(pos) < uint(len(i.str)) {
 		r2 = rune(i.str[pos])
-		if r2 >= utf8.RuneSelf {
-			r2, _ = utf8.DecodeRuneInString(i.str[pos:])
-		}
 	}
 	return newLazyFlag(r1, r2)
 }
@@ -412,10 +397,7 @@ type inputBytes struct {
 func (i *inputBytes) step(pos int) (rune, int) {
 	if pos < len(i.str) {
 		c := i.str[pos]
-		if c < utf8.RuneSelf {
-			return rune(c), 1
-		}
-		return utf8.DecodeRune(i.str[pos:])
+		return rune(c), 1
 	}
 	return endOfText, 0
 }
@@ -437,23 +419,17 @@ func (i *inputBytes) context(pos int) lazyFlag {
 	// 0 < pos && pos <= len(i.str)
 	if uint(pos-1) < uint(len(i.str)) {
 		r1 = rune(i.str[pos-1])
-		if r1 >= utf8.RuneSelf {
-			r1, _ = utf8.DecodeLastRune(i.str[:pos])
-		}
 	}
 	// 0 <= pos && pos < len(i.str)
 	if uint(pos) < uint(len(i.str)) {
 		r2 = rune(i.str[pos])
-		if r2 >= utf8.RuneSelf {
-			r2, _ = utf8.DecodeRune(i.str[pos:])
-		}
 	}
 	return newLazyFlag(r1, r2)
 }
 
-// inputReader scans a RuneReader.
+// inputReader scans a ByteReader.
 type inputReader struct {
-	r     io.RuneReader
+	r     io.ByteReader
 	atEOT bool
 	pos   int
 }
@@ -463,13 +439,13 @@ func (i *inputReader) step(pos int) (rune, int) {
 		return endOfText, 0
 
 	}
-	r, w, err := i.r.ReadRune()
+	r, err := i.r.ReadByte()
 	if err != nil {
 		i.atEOT = true
 		return endOfText, 0
 	}
-	i.pos += w
-	return r, w
+	i.pos++
+	return rune(r), 1
 }
 
 func (i *inputReader) canCheckPrefix() bool {
@@ -495,9 +471,9 @@ func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
 	return re.prefix, re.prefixComplete
 }
 
-// MatchReader reports whether the text returned by the RuneReader
+// MatchReader reports whether the text returned by the ByteReader
 // contains any match of the regular expression re.
-func (re *Regexp) MatchReader(r io.RuneReader) bool {
+func (re *Regexp) MatchReader(r io.ByteReader) bool {
 	return re.doMatch(r, nil, "")
 }
 
@@ -513,10 +489,10 @@ func (re *Regexp) Match(b []byte) bool {
 	return re.doMatch(nil, b, "")
 }
 
-// MatchReader reports whether the text returned by the RuneReader
+// MatchReader reports whether the text returned by the ByteReader
 // contains any match of the regular expression pattern.
 // More complicated queries need to use Compile and the full Regexp interface.
-func MatchReader(pattern string, r io.RuneReader) (matched bool, err error) {
+func MatchReader(pattern string, r io.ByteReader) (matched bool, err error) {
 	re, err := Compile(pattern)
 	if err != nil {
 		return false, err
@@ -618,17 +594,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 		lastMatchEnd = a[1]
 
 		// Advance past this match; always advance at least one character.
-		var width int
-		if bsrc != nil {
-			_, width = utf8.DecodeRune(bsrc[searchPos:])
-		} else {
-			_, width = utf8.DecodeRuneInString(src[searchPos:])
-		}
-		if searchPos+width > a[1] {
-			searchPos += width
-		} else if searchPos+1 > a[1] {
-			// This clause is only needed at the end of the input
-			// string. In that case, DecodeRuneInString returns width=0.
+		if searchPos+1 > a[1] {
 			searchPos++
 		} else {
 			searchPos = a[1]
@@ -687,7 +653,7 @@ var specialBytes [16]byte
 
 // special reports whether byte b needs to be escaped by QuoteMeta.
 func special(b byte) bool {
-	return b < utf8.RuneSelf && specialBytes[b%16]&(1<<(b/16)) != 0
+	return b < 16*8 && specialBytes[b%16]&(1<<(b/16)) != 0
 }
 
 func init() {
@@ -768,15 +734,8 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 				// after a previous match, so ignore it.
 				accept = false
 			}
-			var width int
-			// TODO: use step()
-			if b == nil {
-				_, width = utf8.DecodeRuneInString(s[pos:end])
-			} else {
-				_, width = utf8.DecodeRune(b[pos:end])
-			}
-			if width > 0 {
-				pos += width
+			if pos < end {
+				pos++
 			} else {
 				pos = end + 1
 			}
@@ -843,10 +802,10 @@ func (re *Regexp) FindStringIndex(s string) (loc []int) {
 
 // FindReaderIndex returns a two-element slice of integers defining the
 // location of the leftmost match of the regular expression in text read from
-// the RuneReader. The match text was found in the input stream at
+// the ByteReader. The match text was found in the input stream at
 // byte offset loc[0] through loc[1]-1.
 // A return value of nil indicates no match.
-func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
+func (re *Regexp) FindReaderIndex(r io.ByteReader) (loc []int) {
 	a := re.doExecute(r, nil, "", 0, 2, nil)
 	if a == nil {
 		return nil
@@ -964,11 +923,11 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 	}
 	i := 0
 	for i < len(str) {
-		rune, size := utf8.DecodeRuneInString(str[i:])
+		rune := rune(str[i])
 		if !unicode.IsLetter(rune) && !unicode.IsDigit(rune) && rune != '_' {
 			break
 		}
-		i += size
+		i++
 	}
 	if i == 0 {
 		// empty name is not okay
@@ -1042,10 +1001,10 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 
 // FindReaderSubmatchIndex returns a slice holding the index pairs
 // identifying the leftmost match of the regular expression of text read by
-// the RuneReader, and the matches, if any, of its subexpressions, as defined
+// the ByteReader, and the matches, if any, of its subexpressions, as defined
 // by the 'Submatch' and 'Index' descriptions in the package comment. A
 // return value of nil indicates no match.
-func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
+func (re *Regexp) FindReaderSubmatchIndex(r io.ByteReader) []int {
 	return re.pad(re.doExecute(r, nil, "", 0, re.prog.NumCap, nil))
 }
 
