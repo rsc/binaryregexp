@@ -826,7 +826,9 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 					break BigSwitch
 				case 'C':
 					// any byte; not supported
-					return nil, &Error{ErrInvalidEscape, t[:2]}
+					p.op(OpAnyChar)
+					t = t[2:]
+					break BigSwitch
 				case 'Q':
 					// \Q ... \E: the ... is always literals
 					var lit string
