@@ -63,7 +63,7 @@
 //
 // (There are a few other methods that do not match this pattern.)
 //
-package regexp
+package binaryregexp
 
 import (
 	"bytes"
