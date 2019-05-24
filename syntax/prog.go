@@ -5,8 +5,8 @@
 package syntax
 
 import (
+	"bytes"
 	"strconv"
-	"strings"
 	"unicode"
 )
 
@@ -117,7 +117,7 @@ type Inst struct {
 }
 
 func (p *Prog) String() string {
-	var b strings.Builder
+	var b bytes.Buffer
 	dumpProg(&b, p)
 	return b.String()
 }
@@ -153,7 +153,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	}
 
 	// Have prefix; gather characters.
-	var buf strings.Builder
+	var buf bytes.Buffer
 	for i.op() == InstRune && len(i.Rune) == 1 && i.Rune[0] <= 0xFF && Flags(i.Arg)&FoldCase == 0 {
 		buf.WriteByte(byte(i.Rune[0]))
 		i = p.skipNop(i.Out)
@@ -279,18 +279,18 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 }
 
 func (i *Inst) String() string {
-	var b strings.Builder
+	var b bytes.Buffer
 	dumpInst(&b, i)
 	return b.String()
 }
 
-func bw(b *strings.Builder, args ...string) {
+func bw(b *bytes.Buffer, args ...string) {
 	for _, s := range args {
 		b.WriteString(s)
 	}
 }
 
-func dumpProg(b *strings.Builder, p *Prog) {
+func dumpProg(b *bytes.Buffer, p *Prog) {
 	for j := range p.Inst {
 		i := &p.Inst[j]
 		pc := strconv.Itoa(j)
@@ -310,7 +310,7 @@ func u32(i uint32) string {
 	return strconv.FormatUint(uint64(i), 10)
 }
 
-func dumpInst(b *strings.Builder, i *Inst) {
+func dumpInst(b *bytes.Buffer, i *Inst) {
 	switch i.Op {
 	case InstAlt:
 		bw(b, "alt -> ", u32(i.Out), ", ", u32(i.Arg))

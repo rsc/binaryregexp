@@ -5,8 +5,8 @@
 package binaryregexp
 
 import (
+	"bytes"
 	"sort"
-	"strings"
 	"unicode"
 
 	"rsc.io/binaryregexp/syntax"
@@ -55,7 +55,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	}
 
 	// Have prefix; gather characters.
-	var buf strings.Builder
+	var buf bytes.Buffer
 	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && i.Rune[0] <= 0xFF && syntax.Flags(i.Arg)&syntax.FoldCase == 0 {
 		buf.WriteByte(byte(i.Rune[0]))
 		pc, i = i.Out, &p.Inst[i.Out]

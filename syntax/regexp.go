@@ -8,6 +8,7 @@ package syntax
 // In this package, re is always a *Regexp and r is always a rune.
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"unicode"
@@ -113,7 +114,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 }
 
 // writeRegexp writes the Perl syntax for the regular expression re to b.
-func writeRegexp(b *strings.Builder, re *Regexp) {
+func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	switch re.Op {
 	default:
 		b.WriteString("<invalid op" + strconv.Itoa(int(re.Op)) + ">")
@@ -244,14 +245,14 @@ func writeRegexp(b *strings.Builder, re *Regexp) {
 }
 
 func (re *Regexp) String() string {
-	var b strings.Builder
+	var b bytes.Buffer
 	writeRegexp(&b, re)
 	return b.String()
 }
 
 const meta = `\.+*?()|[]{}^$`
 
-func escape(b *strings.Builder, r rune, force bool) {
+func escape(b *bytes.Buffer, r rune, force bool) {
 	if unicode.IsPrint(r) {
 		if strings.ContainsRune(meta, r) || force {
 			b.WriteRune('\\')

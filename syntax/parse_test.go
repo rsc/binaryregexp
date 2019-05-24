@@ -5,8 +5,8 @@
 package syntax
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 	"unicode"
 )
@@ -93,7 +93,7 @@ var parseTests = []parseTest{
 	{`(?i)\w`, `cc{0x30-0x39 0x41-0x5a 0x5f 0x61-0x7a 0x17f 0x212a}`},
 	{`(?i)\W`, `cc{0x0-0x2f 0x3a-0x40 0x5b-0x5e 0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}`},
 	{`[^\\]`, `cc{0x0-0x5b 0x5d-0x10ffff}`},
-	{ `\C`, `dot{}` },
+	{`\C`, `dot{}`},
 
 	// Unicode, negatives, and a double negative.
 	{`\p{Braille}`, `cc{0x2800-0x28ff}`},
@@ -282,7 +282,7 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 // dump prints a string representation of the regexp showing
 // the structure explicitly.
 func dump(re *Regexp) string {
-	var b strings.Builder
+	var b bytes.Buffer
 	dumpRegexp(&b, re)
 	return b.String()
 }
@@ -312,7 +312,7 @@ var opNames = []string{
 // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
 // It is used during testing to distinguish between parses that might print
 // the same using re's String method.
-func dumpRegexp(b *strings.Builder, re *Regexp) {
+func dumpRegexp(b *bytes.Buffer, re *Regexp) {
 	if int(re.Op) >= len(opNames) || opNames[re.Op] == "" {
 		fmt.Fprintf(b, "op%d", re.Op)
 	} else {
