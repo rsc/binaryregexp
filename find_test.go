@@ -26,7 +26,6 @@ func (t FindTest) String() string {
 }
 
 var findTests = []FindTest{
-	{`Æ`, "\xC6", build(1, 0, 1)},
 	{``, ``, build(1, 0, 0)},
 	{`^abcdefg`, "abcdefg", build(1, 0, 7)},
 	{`a+`, "baaab", build(1, 1, 4)},

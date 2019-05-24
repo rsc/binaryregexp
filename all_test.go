@@ -94,7 +94,7 @@ func matchTest(t *testing.T, test *FindTest) {
 }
 
 func TestMatch(t *testing.T) {
-	for _, test := range findTests[:1] {
+	for _, test := range findTests {
 		matchTest(t, &test)
 	}
 }
